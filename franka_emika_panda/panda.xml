@@ -239,7 +239,7 @@
                         <geom class="fingertip_pad_collision_4"/>
                         <geom class="fingertip_pad_collision_5"/>
                       </body>
-                      <body name="attachment" pos="0 0 0.107" quat="0.3826834 0 0 0.9238795">
+                      <body name="attachment" pos="0 0 0.107">
                         <site name="attachment_site" size="0.01 0.01 0.01" rgba="0 1 0 1" class="visual"/>
                       </body>
                     </body>
@@ -250,6 +250,12 @@
           </body>
         </body>
       </body>
+
+      <body name="path" pos="0.5 0 0.4">
+        <site name="path_site" size="0.01 .5 0.01" rgba="0 0 1 1" class="visual" type="box"/>
+      </body>
+
+
     </body>
   </worldbody>
 
