@@ -86,7 +86,7 @@ def main() -> None:
     plt.title(f'Joint {i}')
     plt.legend()    
 
-    fig, ax = plt.subplots(6, 1, figsize=(17, 15))
+    fig, ax = plt.subplots(4, 1, figsize=(17, 15))
     
     graphics.add_line(var_type='_tvp', var_name='target_pos', axis=ax[0])
     ax[0].set_title('Docelowe pozycje końcówki (target_pos)')
@@ -121,16 +121,16 @@ def main() -> None:
     ax[3].grid(True)
     ax[3].legend()
 
-    graphics.add_line(var_type='_aux', var_name='ee_rot', axis=ax[4])
-    ax[4].set_title('Rzeczywista rotacja końcówki (MPC)')
-    ax[4].grid(True)
-    ax[4].legend(['ROT W', 'ROT X', 'ROT Y', 'ROT Z'])
+    # graphics.add_line(var_type='_aux', var_name='ee_rot', axis=ax[4])
+    # ax[4].set_title('Rzeczywista rotacja końcówki (MPC)')
+    # ax[4].grid(True)
+    # ax[4].legend(['ROT W', 'ROT X', 'ROT Y', 'ROT Z'])
 
-    graphics.add_line(var_type='_tvp', var_name='target_rot', axis=ax[5])
-    ax[5].set_title('Docelowe rotacja końcówki')
-    ax[5].set_ylabel('Pozycja X [m]')
-    ax[5].grid(True)
-    ax[5].legend(['Target W', 'Target X', 'Target Y', 'Target Z'])
+    # graphics.add_line(var_type='_tvp', var_name='target_rot', axis=ax[5])
+    # ax[5].set_title('Docelowe rotacja końcówki')
+    # ax[5].set_ylabel('Pozycja X [m]')
+    # ax[5].grid(True)
+    # ax[5].legend(['Target W', 'Target X', 'Target Y', 'Target Z'])
 
 
     plt.show()

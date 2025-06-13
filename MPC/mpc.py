@@ -112,7 +112,7 @@ class MPC:
 
     def get_trajectory(self, t_now):
         base_z = 0.4
-        frequency = 0.3
+        frequency = 0.1
         if isinstance(t_now, float):
             t = t_now
         else:
@@ -142,7 +142,6 @@ class MPC:
         T1[1, 3] = 0
         T1[2, 3] = 0.333
         
-        # Joint 1 - rotacja wokół Z
         c1, s1 = casadi.cos(q[0]), casadi.sin(q[0])
         R1 = casadi.vertcat(
             casadi.horzcat(c1, -s1, 0),
@@ -541,19 +540,16 @@ class MPC:
         n_horizon = 5
         setup_mpc = {
             'n_horizon': n_horizon,
-            't_step': 0.002,
-            'state_discretization': 'collocation',
-            'collocation_type': 'radau',
-            'collocation_deg': 3,
-            'collocation_ni': 2,
-            'open_loop' : False,
+            't_step': 0.002,  # Zwiększ krok czasowy (było 0.002)
             'store_full_solution': True,
             'nlpsol_opts': {
-                'ipopt.max_iter': 500,
+                'ipopt.max_iter': 200,      # Zmniejsz iteracje (było 500)
                 'ipopt.print_level': 0,
-                'ipopt.tol': 1e-6,
-                'ipopt.acceptable_tol': 1e-4,
-                'ipopt.constr_viol_tol': 1e-6,
+                'ipopt.tol': 1e-4,          # Rozluźnij tolerancję (było 1e-6)
+                'ipopt.acceptable_tol': 1e-3,
+                'ipopt.constr_viol_tol': 1e-4,
+                'ipopt.warm_start_init_point': 'yes',  # Warm start
+                'ipopt.mu_strategy': 'adaptive',
                 'print_time': 0
             }
         }
@@ -569,11 +565,14 @@ class MPC:
         )
         weighted_rot_cost = casadi.sum1(rot_weights * (orientation_error**2))
 
+        velocity_penalty = casadi.sum1(self.model.x['qd'])
+    
+        # Lepsze lterm i mterm
         mterm = weighted_pos_cost
         lterm = casadi.DM.zeros()
 
-        mpc.set_nl_cons('obstacles', weighted_pos_cost, 0)
-        mpc.set_nl_cons('obstacles2', weighted_rot_cost, 0.1)
+        # mpc.set_nl_cons('obstacles', weighted_pos_cost, 0.01)
+        # mpc.set_nl_cons('obstacles2', weighted_rot_cost, 0.1)
 
         tvp_template = mpc.get_tvp_template()
         def tvp_fun(t_now):
