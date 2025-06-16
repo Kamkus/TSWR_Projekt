@@ -11,46 +11,36 @@ class MPC:
 
 
     def rotation_matrix_to_quat_numpy(self,R):
-        """
-        Konwersja macierzy rotacji 3x3 na kwaternion w NumPy
-        Używa tej samej logiki co wersja CasADi
-        Zwraca kwaternion w formacie (w, x, y, z)
-        """
         trace = R[0, 0] + R[1, 1] + R[2, 2]
         
-        # Przypadek 1: trace > 0
         if trace > 0:
-            s1 = np.sqrt(trace + 1.0) * 2  # s = 4 * qw
+            s1 = np.sqrt(trace + 1.0) * 2  
             qw = 0.25 * s1
             qx = (R[2, 1] - R[1, 2]) / s1
             qy = (R[0, 2] - R[2, 0]) / s1
             qz = (R[1, 0] - R[0, 1]) / s1
         
-        # Przypadek 2: R[0,0] > R[1,1] and R[0,0] > R[2,2]
         elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-            s2 = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2  # s = 4 * qx
+            s2 = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2 
             qw = (R[2, 1] - R[1, 2]) / s2
             qx = 0.25 * s2
             qy = (R[0, 1] + R[1, 0]) / s2
             qz = (R[0, 2] + R[2, 0]) / s2
         
-        # Przypadek 3: R[1,1] > R[2,2]
         elif R[1, 1] > R[2, 2]:
-            s3 = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2  # s = 4 * qy
+            s3 = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2 
             qw = (R[0, 2] - R[2, 0]) / s3
             qx = (R[0, 1] + R[1, 0]) / s3
             qy = 0.25 * s3
             qz = (R[1, 2] + R[2, 1]) / s3
         
-        # Przypadek 4: pozostałe (R[2,2] największe)
         else:
-            s4 = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2  # s = 4 * qz
+            s4 = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2 
             qw = (R[1, 0] - R[0, 1]) / s4
             qx = (R[0, 2] + R[2, 0]) / s4
             qy = (R[1, 2] + R[2, 1]) / s4
             qz = 0.25 * s4
         
-        # Normalizacja kwaterniona
         quat = np.array([qw, qx, qy, qz])
         norm = np.sqrt(qw**2 + qx**2 + qy**2 + qz**2)
         quat_normalized = quat / norm
@@ -112,7 +102,7 @@ class MPC:
 
     def get_trajectory(self, t_now):
         base_z = 0.4
-        frequency = 0.1
+        frequency = 0.2
         if isinstance(t_now, float):
             t = t_now
         else:
@@ -128,7 +118,6 @@ class MPC:
         norm = casadi.sqrt(qw**2 + qx**2 + qy**2 + qz**2)
         qw, qx, qy, qz = qw/norm, qx/norm, qy/norm, qz/norm
         
-        # Macierz rotacji z kwaterniona
         R = casadi.vertcat(
             casadi.horzcat(1-2*(qy**2+qz**2), 2*(qx*qy-qw*qz), 2*(qx*qz+qw*qy)),
             casadi.horzcat(2*(qx*qy+qw*qz), 1-2*(qx**2+qz**2), 2*(qy*qz-qw*qx)),
@@ -150,16 +139,13 @@ class MPC:
         )
         T1[:3, :3] = R1
         
-        # 2. link1 -> link2: quat="1 -1 0 0" + joint2
         T2 = casadi.SX.eye(4)
-        T2[0, 3] = 0  # pos="0 0 0" w XML
+        T2[0, 3] = 0  
         T2[1, 3] = 0
         T2[2, 3] = 0
         
-        # Kwaternion statyczny "1 -1 0 0" (w, x, y, z)
         R2_static = self.quat_to_rotation_matrix(1, -1, 0, 0)
         
-        # Joint2 rotacja wokół lokalnego Z
         c2, s2 = casadi.cos(q[1]), casadi.sin(q[1])
         R2_joint = casadi.vertcat(
             casadi.horzcat(c2, -s2, 0),
@@ -169,16 +155,13 @@ class MPC:
         
         T2[:3, :3] = casadi.mtimes(R2_static, R2_joint)
         
-        # 3. link2 -> link3: pos="0 -0.316 0", quat="1 1 0 0" + joint3
         T3 = casadi.SX.eye(4)
         T3[0, 3] = 0
         T3[1, 3] = -0.316
         T3[2, 3] = 0
         
-        # Kwaternion statyczny "1 1 0 0"
         R3_static = self.quat_to_rotation_matrix(1, 1, 0, 0)
         
-        # Joint3 rotacja
         c3, s3 = casadi.cos(q[2]), casadi.sin(q[2])
         R3_joint = casadi.vertcat(
             casadi.horzcat(c3, -s3, 0),
@@ -188,16 +171,13 @@ class MPC:
         
         T3[:3, :3] = casadi.mtimes(R3_static, R3_joint)
         
-        # 4. link3 -> link4: pos="0.0825 0 0", quat="1 1 0 0" + joint4
         T4 = casadi.SX.eye(4)
         T4[0, 3] = 0.0825
         T4[1, 3] = 0
         T4[2, 3] = 0
         
-        # Kwaternion statyczny "1 1 0 0"
         R4_static = self.quat_to_rotation_matrix(1, 1, 0, 0)
         
-        # Joint4 rotacja
         c4, s4 = casadi.cos(q[3]), casadi.sin(q[3])
         R4_joint = casadi.vertcat(
             casadi.horzcat(c4, -s4, 0),
@@ -207,16 +187,13 @@ class MPC:
         
         T4[:3, :3] = casadi.mtimes(R4_static, R4_joint)
         
-        # 5. link4 -> link5: pos="-0.0825 0.384 0", quat="1 -1 0 0" + joint5
         T5 = casadi.SX.eye(4)
         T5[0, 3] = -0.0825
         T5[1, 3] = 0.384
         T5[2, 3] = 0
         
-        # Kwaternion statyczny "1 -1 0 0"
         R5_static = self.quat_to_rotation_matrix(1, -1, 0, 0)
         
-        # Joint5 rotacja
         c5, s5 = casadi.cos(q[4]), casadi.sin(q[4])
         R5_joint = casadi.vertcat(
             casadi.horzcat(c5, -s5, 0),
@@ -226,16 +203,13 @@ class MPC:
         
         T5[:3, :3] = casadi.mtimes(R5_static, R5_joint)
         
-        # 6. link5 -> link6: pos="0 0 0", quat="1 1 0 0" + joint6
         T6 = casadi.SX.eye(4)
         T6[0, 3] = 0
         T6[1, 3] = 0
         T6[2, 3] = 0
         
-        # Kwaternion statyczny "1 1 0 0"
         R6_static = self.quat_to_rotation_matrix(1, 1, 0, 0)
         
-        # Joint6 rotacja
         c6, s6 = casadi.cos(q[5]), casadi.sin(q[5])
         R6_joint = casadi.vertcat(
             casadi.horzcat(c6, -s6, 0),
@@ -245,16 +219,13 @@ class MPC:
         
         T6[:3, :3] = casadi.mtimes(R6_static, R6_joint)
         
-        # 7. link6 -> link7: pos="0.088 0 0", quat="1 1 0 0" + joint7
         T7 = casadi.SX.eye(4)
         T7[0, 3] = 0.088
         T7[1, 3] = 0
         T7[2, 3] = 0
         
-        # Kwaternion statyczny "1 1 0 0"
         R7_static = self.quat_to_rotation_matrix(1, 1, 0, 0)
         
-        # Joint7 rotacja
         c7, s7 = casadi.cos(q[6]), casadi.sin(q[6])
         R7_joint = casadi.vertcat(
             casadi.horzcat(c7, -s7, 0),
@@ -264,18 +235,16 @@ class MPC:
         
         T7[:3, :3] = casadi.mtimes(R7_static, R7_joint)
         
-        # 8. link7 -> hand: pos="0 0 0.107", quat="0.9238795 0 0 -0.3826834"
         T_hand = casadi.SX.eye(4)
         T_hand[0, 3] = 0
         T_hand[1, 3] = 0
         T_hand[2, 3] = 0.107
         
-        # Kwaternion z XML: "0.9238795 0 0 -0.3826834" (w, x, y, z)
         R_hand = self.quat_to_rotation_matrix(0.9238795, 0, 0, -0.3826834)
         T_hand[:3, :3] = R_hand
         
         T_attachment = casadi.SX.eye(4)
-        T_attachment[0, 3] = 0        # pos="0 0 0.107" w XML
+        T_attachment[0, 3] = 0        
         T_attachment[1, 3] = 0
         T_attachment[2, 3] = 0.107
         T_total = T1
@@ -283,7 +252,7 @@ class MPC:
         for T in [T2, T3, T4, T5, T6, T7, T_hand, T_attachment]:
             T_total = casadi.mtimes(T_total, T)
         
-        # Pozycja i orientacja końcówki
+
         pos = T_total[:3, 3]
         R_final = T_total[:3, :3]
         
@@ -336,84 +305,59 @@ class MPC:
             [0, 0, 0.107, 0]           # Attachment
         ]
         
-        damping = casadi.SX.ones(7) * 1.0    # damping="1" dla wszystkich
-        armature = casadi.SX.ones(7) * 0.1   # armature="0.1" dla wszystkich
+        damping = casadi.SX.ones(7) * 1.0   
+        armature = casadi.SX.ones(7) * 0.1  
         
-        # Obliczenie transformacji między stawami (dla pozycji q)
         cos_q = [casadi.cos(q[i]) for i in range(7)]
         sin_q = [casadi.sin(q[i]) for i in range(7)]
         
-        # 1. MACIERZ MAS M(q) - uwzględnia masy, położenia i inercje
-        # 1.1. Diagonalne elementy macierzy mas
         M_diag = [casadi.SX(0.0)] * 7  # ZMIANA: używamy SX
         
-        # Dla Joint 1 (obrót wokół Z) - wszystkie masy wirujące wokół osi Z
         M_diag[0] = sum(m) + armature[0]
         for i in range(1, 9):
-            # Dodaj efekty inercji dla każdego linka
-            # Ixx + Iyy - główne momenty bezwładności dla obrotu wokół Z
             M_diag[0] += inertia[i][0] + inertia[i][1]
         
-        # Dla Joint 2 - uwzględnia masy linków downstream
         link2_to_hand_mass = sum(m[2:]) 
         M_diag[1] = (link2_to_hand_mass * (dh_params[2][2]**2 + dh_params[4][2]**2) + 
                     inertia[1][1] + inertia[1][2] + armature[1])
         
-        # Efekt konfiguracji - zależność od q2
         M_diag[1] += link2_to_hand_mass * dh_params[2][2] * dh_params[4][2] * cos_q[1]**2
         
-        # Dla pozostałych stawów
-        # Joint 3
         M_diag[2] = (sum(m[3:]) * (dh_params[3][0]**2 + dh_params[7][2]**2) + 
                     inertia[2][0] + inertia[2][2] + armature[2])
-        # Efekt konfiguracji - zależność od q3
         M_diag[2] += sum(m[3:]) * dh_params[3][0] * dh_params[7][2] * cos_q[2]**2
         
-        # Joint 4
         M_diag[3] = (sum(m[4:]) * (dh_params[4][0]**2 + dh_params[4][2]**2) + 
                     inertia[3][0] + inertia[3][2] + armature[3])
-        # Efekt konfiguracji - zależność od q4
         M_diag[3] += sum(m[4:]) * abs(dh_params[4][0]) * dh_params[4][2] * cos_q[3]**2
         
-        # Joint 5
         M_diag[4] = (sum(m[5:]) * dh_params[5][2]**2 + 
                     inertia[4][0] + inertia[4][2] + armature[4])
         
-        # Joint 6
         M_diag[5] = (sum(m[6:]) * dh_params[6][0]**2 + 
                     inertia[5][0] + inertia[5][2] + armature[5])
-        # Efekt konfiguracji - zależność od q6
         M_diag[5] += sum(m[6:]) * dh_params[6][0] * dh_params[7][2] * cos_q[5]**2
         
-        # Joint 7
         M_diag[6] = (m[7] + m[8]) * dh_params[7][2]**2 + inertia[6][1] + inertia[6][2] + armature[6]
         
-        # 1.2. Pozadiagonalne elementy macierzy mas (sprzężenia bezwładnościowe)
-        # ZMIANA: DM -> SX
         M_off_diag = casadi.SX.zeros(7, 7)
         
-        # Sprzężenie J2-J3 (bardzo silne ze względu na geometrię)
         v1 = sum(m[3:]) * dh_params[2][2] * dh_params[3][0] * cos_q[2]
         M_off_diag[1, 2] = v1
-        M_off_diag[2, 1] = v1  # Symetria
-        
-        # Sprzężenie J3-J4
+        M_off_diag[2, 1] = v1  
         v2 = sum(m[4:]) * dh_params[3][0] * dh_params[4][0] * sin_q[3]
         M_off_diag[2, 3] = v2
-        M_off_diag[3, 2] = v2  # Symetria
+        M_off_diag[3, 2] = v2  
         
-        # Sprzężenie J4-J5
+
         v3 = sum(m[5:]) * dh_params[4][0] * sin_q[4]
         M_off_diag[3, 4] = v3
-        M_off_diag[4, 3] = v3  # Symetria
+        M_off_diag[4, 3] = v3  
         
-        # Sprzężenie J5-J6
         v4 = sum(m[6:]) * dh_params[5][2] * dh_params[6][0] * sin_q[5]
         M_off_diag[4, 5] = v4
-        M_off_diag[5, 4] = v4  # Symetria
+        M_off_diag[5, 4] = v4  
         
-        # 1.3. Pełna macierz mas
-        # ZMIANA: DM -> SX
         M = casadi.SX.zeros(7, 7)
         for i in range(7):
             M[i, i] = M_diag[i]
@@ -421,76 +365,52 @@ class MPC:
                 if i != j:
                     M[i, j] = M_off_diag[i, j]
         
-        # 2. SIŁY CORIOLISA I ODŚRODKOWE C(q,qd)
-        
-        # 2.1. Efekty odśrodkowe (proporcjonalne do qd^2)
-        # ZMIANA: DM -> SX
         C_centrifugal = casadi.SX.zeros(7, 1)
         
-        # Joint 2 - silny efekt odśrodkowy od masy linków 3-hand
         C_centrifugal[1] = -sum(m[3:]) * dh_params[2][2] * sin_q[1] * qd[1]**2
         
-        # Joint 3
         C_centrifugal[2] = -sum(m[4:]) * dh_params[3][0] * sin_q[2] * qd[2]**2
         
-        # Joint 4 - silny efekt od ciężkiego link4
         C_centrifugal[3] = -sum(m[5:]) * dh_params[4][2] * sin_q[3] * qd[3]**2
         
-        # Joint 6 
         C_centrifugal[5] = -sum(m[7:]) * dh_params[6][0] * sin_q[5] * qd[5]**2
         
-        # 2.2. Efekty Coriolisa (proporcjonalne do qi_dot * qj_dot dla i≠j)
-        # ZMIANA: DM -> SX
         C_coriolis = casadi.SX.zeros(7, 1)
         
-        # Efekty między J1-J2
         C_coriolis[0] += -sum(m[2:]) * dh_params[2][2] * sin_q[1] * qd[0] * qd[1]
         C_coriolis[1] += sum(m[2:]) * dh_params[2][2] * sin_q[1] * qd[0] * qd[1]
         
-        # Efekty między J2-J3
         C_coriolis[1] += -sum(m[3:]) * dh_params[2][2] * dh_params[3][0] * sin_q[2] * qd[1] * qd[2]
         C_coriolis[2] += sum(m[3:]) * dh_params[2][2] * dh_params[3][0] * sin_q[2] * qd[1] * qd[2]
         
-        # Efekty między J3-J4
         C_coriolis[2] += -sum(m[4:]) * dh_params[3][0] * dh_params[4][0] * cos_q[3] * qd[2] * qd[3]
         C_coriolis[3] += sum(m[4:]) * dh_params[3][0] * dh_params[4][0] * cos_q[3] * qd[2] * qd[3]
         
-        # 2.3. Siły tłumienia (damping)
         C_damping = damping * qd
         
-        # 2.4. Suma wszystkich efektów
         C = C_centrifugal + C_coriolis + C_damping
         
-        # 3. WEKTOR SIŁ GRAWITACYJNYCH G(q)
-        g = 9.81  # Przyspieszenie ziemskie
-        # ZMIANA: DM -> SX
+        g = 9.81
         G = casadi.SX.zeros(7, 1)
         
-        # Joint 2 - najsilniejszy efekt grawitacyjny
         G[1] = g * (m[1] * com[1][2] * cos_q[1] +                # link1 COM
                 sum(m[2:]) * (dh_params[2][2] * cos_q[1] +    # link2
                             dh_params[4][2] * sin_q[1] * sin_q[3]))  # dalsze linki
         
-        # Joint 3
         G[2] = g * (m[2] * com[2][2] * cos_q[2] +                # link2 COM
                 sum(m[3:]) * dh_params[3][0] * sin_q[2])      # dalsze linki
         
-        # Joint 4 - drugi najsilniejszy efekt grawitacyjny
         G[3] = g * (m[3] * com[3][2] * cos_q[3] +                # link3 COM
                 sum(m[4:]) * dh_params[4][2] * cos_q[3])      # dalsze linki
         
-        # Joint 5
         G[4] = g * m[4] * com[4][2] * sin_q[4]                   # link4 COM
         
-        # Joint 6
         G[5] = g * (m[5] * com[5][2] * cos_q[5] +                # link5 COM
                     sum(m[6:]) * dh_params[6][0] * sin_q[5])     # dalsze linki
         
-        # Joint 7 - minimalny efekt grawitacyjny
-        G[6] = g * m[6] * com[6][2] * sin_q[6]                   # link6 COM
+        G[6] = g * m[6] * com[6][2] * sin_q[6]             
         
-        # 4. ROZWIĄZANIE RÓWNANIA RUCHU: M(q)*qdd + C(q,qd) + G(q) = u
-        # ZMIANA: mtimes(inv(M),b) -> solve(M,b)
+
         qdd = casadi.solve(M, (u - C - G))
         
         return qdd
@@ -506,10 +426,10 @@ class MPC:
         target_pos = model.set_variable(var_type='_tvp', var_name='target_pos', shape=(3, 1))
         target_rot = model.set_variable(var_type='_tvp', var_name='target_rot', shape=(3, 1))  # 3x3 matriz jako wektor
         
-        # Kinematyka końcówki
+       
         ee_pos, ee_rot = self.calculate_end_effector_kinematics(q)
         
-        # Dodaj jako zmienne pomocnicze
+        
 
 
         qdd = self.calculate_dynamics(u, qd, q)
@@ -523,7 +443,7 @@ class MPC:
     def calculate_orientation_error(self, ee_rot, target_direction):
 
         
-        current_x_axis = ee_rot[:, 2]  # Kierunek osi X końcówki
+        current_x_axis = ee_rot[:, 2] 
     
         target_x_direction = casadi.vertcat(0.0, 0.0, -1.0)
         
@@ -540,15 +460,15 @@ class MPC:
         n_horizon = 5
         setup_mpc = {
             'n_horizon': n_horizon,
-            't_step': 0.002,  # Zwiększ krok czasowy (było 0.002)
+            't_step': 0.002, 
             'store_full_solution': True,
             'nlpsol_opts': {
-                'ipopt.max_iter': 200,      # Zmniejsz iteracje (było 500)
+                'ipopt.max_iter': 200,      
                 'ipopt.print_level': 0,
-                'ipopt.tol': 1e-4,          # Rozluźnij tolerancję (było 1e-6)
+                'ipopt.tol': 1e-4,          
                 'ipopt.acceptable_tol': 1e-3,
                 'ipopt.constr_viol_tol': 1e-4,
-                'ipopt.warm_start_init_point': 'yes',  # Warm start
+                'ipopt.warm_start_init_point': 'yes', 
                 'ipopt.mu_strategy': 'adaptive',
                 'print_time': 0
             }
@@ -556,27 +476,26 @@ class MPC:
         mpc.settings.set_linear_solver(solver_name = "MA27")
         mpc.set_param(**setup_mpc)
         pos_error = self.model.aux['ee_pos'] - self.model.tvp['target_pos']
-        weights = casadi.vertcat(100.0, 100.0, 100.0)
+        weights = casadi.vertcat(200.0, 200.0, 200.0)
         weighted_pos_cost = casadi.sum1(weights * (pos_error**2))
-        rot_weights = casadi.vertcat(200.0, 200.0, 200.0)     # Roll, Pitch, Yaw
+        rot_weights = casadi.vertcat(200.0, 200.0, 200.0)     
         orientation_error = self.calculate_orientation_error(
             self.model.aux['ee_rot'], 
             self.model.tvp['target_rot']
         )
         weighted_rot_cost = casadi.sum1(rot_weights * (orientation_error**2))
 
-        velocity_penalty = casadi.sum1(self.model.x['qd'])
     
-        # Lepsze lterm i mterm
         mterm = weighted_pos_cost
         lterm = casadi.DM.zeros()
 
-        # mpc.set_nl_cons('obstacles', weighted_pos_cost, 0.01)
-        # mpc.set_nl_cons('obstacles2', weighted_rot_cost, 0.1)
+
+        ### Tutaj można ustawić mu contrait na to, aby trzymał orientację ręki, mimo zaleceń aby ustawić robota w pobliżu celu, ten dalej nie potrafi utrzymać pozycji i nie wylecieć
+        # mpc.set_nl_cons('obstacles', weighted_pos_cost, 0)
+        # mpc.set_nl_cons('obstacles2', weighted_rot_cost, 0.01)
 
         tvp_template = mpc.get_tvp_template()
         def tvp_fun(t_now):
-            print("Siema, t_now:", t_now)
             for k in range(setup_mpc['n_horizon']+1):
                 future_time = t_now + k * setup_mpc['t_step']
                 target_pos, target_rot = self.get_trajectory(future_time)
@@ -591,7 +510,6 @@ class MPC:
         mpc.bounds['lower', '_u', 'u'] = -3
         mpc.bounds['upper', '_u', 'u'] = 3
 
-        # # Ograniczenia na pozycje stawów - z XML
         joint_pos_lower = np.array([-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973])
         joint_pos_upper = np.array([2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973])
         mpc.bounds['lower', '_x', 'q'] = joint_pos_lower
