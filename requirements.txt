@@ -1,3 +1,2 @@
 mujoco
 do_mpc
-pinocchio
